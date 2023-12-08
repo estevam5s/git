@@ -1,3 +1,84 @@
+
+# Função para modificar o nome da pasta removendo números iniciais e outras palavras reservadas
+function Modificar-NomePasta([string]$nome_arquivo) {
+    # Define uma lista de padrões a serem removidos
+    $padroes_a_remover = '^\d+_', '^mtd0[34]', '^806t', '^0752A', '^2775_2797', '^22142NE', '^outra_palavra_reservada'
+
+    # Itera sobre os padrões e remove-os do nome do arquivo
+    foreach ($padrao in $padroes_a_remover) {
+        $nome_arquivo = $nome_arquivo -replace $padrao
+    }
+
+    return $nome_arquivo
+}
+
+# Função principal para percorrer o diretório
+function Percorrer-Diretorio([string]$caminho) {
+    # Verifica se o caminho existe
+    if (Test-Path $caminho) {
+        $item = Get-Item $caminho
+        # Verifica se o item é um diretório
+        if ($item -is [System.IO.DirectoryInfo]) {
+            # Itera sobre todos os itens no diretório
+            foreach ($arquivo_ou_diretorio in Get-ChildItem $caminho) {
+                $caminho_completo = $arquivo_ou_diretorio.FullName
+
+                # Verifica se o item é um diretório
+                if ($arquivo_ou_diretorio -is [System.IO.DirectoryInfo]) {
+                    # Chama a função recursivamente para percorrer o diretório
+                    Percorrer-Diretorio $caminho_completo
+                } else {
+                    # Obtém a extensão do arquivo
+                    $extensao = [System.IO.Path]::GetExtension($caminho_completo)
+
+                    # Verifica se a extensão é de um arquivo de shapefile ou outro tipo de arquivo
+                    if ($extensao -eq ".shp" -or $extensao -eq ".cpg" -or $extensao -eq ".dbf" -or $extensao -eq ".prj" -or $extensao -eq ".sbn" -or $extensao -eq ".sbx" -or $extensao -eq ".shx") {
+                        # Exibe o caminho do arquivo
+                        Write-Host "Arquivo: $caminho_completo"
+                        # Obtém o nome do arquivo sem a extensão
+                        $nome_arquivo = [System.IO.Path]::GetFileNameWithoutExtension($caminho_completo)
+                        # Obtém o nome da pasta para organizar os arquivos
+                        $pasta = Modificar-NomePasta $nome_arquivo
+                        # Obtém o caminho de destino para copiar o arquivo
+                        $destino = ".\$pasta\$([System.IO.Path]::GetFileName($caminho_completo))"
+                        # Cria a pasta de destino se não existir
+                        New-Item -ItemType Directory -Force -Path ".\$pasta"
+                        # Copia o arquivo para a pasta de destino
+                        Copy-Item -Path $caminho_completo -Destination $destino
+                    }
+                }
+            }
+        } else {
+            # Obtém a extensão do arquivo
+            $extensao = [System.IO.Path]::GetExtension($caminho)
+
+            # Verifica se a extensão é de um arquivo de shapefile ou outro tipo de arquivo
+            if ($extensao -eq ".shp" -or $extensao -eq ".cpg" -or $extensao -eq ".dbf" -or $extensao -eq ".prj" -or $extensao -eq ".sbn" -or $extensao -eq ".sbx" -or $extensao -eq ".shx") {
+                # Exibe o caminho do arquivo
+                Write-Host "Arquivo: $caminho"
+                # Obtém o nome do arquivo sem a extensão
+                $nome_arquivo = [System.IO.Path]::GetFileNameWithoutExtension($caminho)
+                # Obtém o nome da pasta para organizar os arquivos
+                $pasta = Modificar-NomePasta $nome_arquivo
+                # Obtém o caminho de destino para copiar o arquivo
+                $destino = ".\$pasta\$([System.IO.Path]::GetFileName($caminho))"
+                # Cria a pasta de destino se não existir
+                New-Item -ItemType Directory -Force -Path ".\$pasta"
+                # Copia o arquivo para a pasta de destino
+                Copy-Item -Path $caminho -Destination $destino
+            }
+        }
+    } else {
+        # Exibe uma mensagem de erro se o caminho não existir
+        Write-Host "O caminho $caminho não existe."
+    }
+}
+
+# Substitua "C:\caminho\para\arquivos" pelo caminho real dos arquivos shapefile
+$caminho = '\\nas.ibge.gov.br\DGC-ACERVO-CCAR2\CONVERSAO_DIGITAL\CCAR_PRODUTOS_VETOR\Arquivos_Shape\CCAR_PRODUTOS_VETOR'
+Percorrer-Diretorio $caminho
+
+
 # Painel Streamlit para visualizar, analisar e prever dados de vendas de um restaurante
 
 
