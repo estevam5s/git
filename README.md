@@ -1,5 +1,77 @@
 
+import os
+import shutil
+import re
+from pathlib import Path
+from osgeo import ogr
 
+class Rota:
+    def __init__(self, name, origem, destino, srid):
+        self.name = name
+        self.origem = origem
+        self.destino = destino
+        self.srid = srid
+
+    def __repr__(self):
+        return f"<Rota(name={self.name}, origem={self.origem}, destino={self.destino}, srid={self.srid})>"
+
+class SRIDExtractor:
+    def __init__(self, shp_path):
+        self.shp_path = shp_path
+
+    def extract_srid_and_coordinates(self):
+        try:
+            driver = ogr.GetDriverByName("ESRI Shapefile")
+            dataset = driver.Open(self.shp_path, 0)
+
+            if dataset is None:
+                raise Exception(f"Error opening {self.shp_path}")
+
+            layer = dataset.GetLayer()
+            srid = layer.GetSpatialRef().GetAuthorityCode(None)
+
+            coordinates = []
+
+            for feature in layer:
+                geometry = feature.GetGeometryRef()
+                if geometry is not None:
+                    for i in range(geometry.GetPointCount()):
+                        point = geometry.GetPoint(i)
+                        coordinates.append(point)
+
+            return srid, coordinates
+
+        except Exception as e:
+            print(f"Error extracting SRID and coordinates from {self.shp_path}: {e}")
+            return None, None
+
+def main():
+    caminho = r'\\nas.ibge.gov.br\DGC-ACERVO-CCAR2\CONVERSAO_DIGITAL\CCAR_PRODUTOS_VETOR\Arquivos_Shape\CCAR_PRODUTOS_VETOR'
+
+    for root, dirs, files in os.walk(caminho):
+        for arquivo_ou_diretorio in files:
+            caminho_completo = Path(root) / arquivo_ou_diretorio
+            extensao = caminho_completo.suffix.lower()
+
+            if extensao == ".shp":
+                srid_extractor = SRIDExtractor(caminho_completo)
+                srid, _ = srid_extractor.extract_srid_and_coordinates()
+
+                if srid is not None:
+                    nome_sem_extensao = re.sub(r'\.shp$', '', caminho_completo.stem)
+                    origem_sem_parte_especifica = re.sub(
+                        r'^//nas\.ibge\.gov\.br/DGC-ACERVO-CCAR2/CONVERSAO_DIGITAL/CCAR_PRODUTOS_VETOR/Arquivos_Shape/CCAR_PRODUTOS_VETOR/',
+                        '', str(caminho_completo.parent))
+
+                    destino_sem_nome_arquivo = Path("arquivosRede") / Path(caminho_completo.name)
+
+                    rota = Rota(name=nome_sem_extensao, origem=origem_sem_parte_especifica,
+                                destino=destino_sem_nome_arquivo, srid=str(srid))
+
+                    print(rota)  # Substitua pelo código de persistência no banco de dados ou outra saída desejada
+
+if __name__ == '__main__':
+    main()
 
 
 # Painel Streamlit para visualizar, analisar e prever dados de vendas de um restaurante
